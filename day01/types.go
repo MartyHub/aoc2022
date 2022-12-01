@@ -1,0 +1,125 @@
+package main
+
+import (
+	"aoc2022"
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"sort"
+	"strconv"
+)
+
+type Elf struct {
+	Id       int
+	Calories int
+}
+
+func (e Elf) String() string {
+	return fmt.Sprintf("Elf # %v: %v calories", e.Id, aoc2022.PrettyFormat(e.Calories))
+}
+
+type Elves struct {
+	data []Elf
+}
+
+func MustRead(fileName string) Elves {
+	log.Printf("Opening %v...", fileName)
+	file, err := os.Open(fileName)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer aoc2022.Close(file)
+
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+
+	log.Printf("Scanning %v...", fileName)
+
+	result := Elves{}
+	calories := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			result.data = result.newElf(calories)
+
+			calories = 0
+		} else if c, err := strconv.Atoi(line); err != nil {
+			log.Fatal(err)
+		} else {
+			calories += c
+		}
+	}
+
+	if calories != 0 {
+		result.data = result.newElf(calories)
+	}
+
+	log.Printf("Read %v", result)
+
+	return result
+}
+
+func (e Elves) Len() int {
+	return len(e.data)
+}
+
+func (e Elves) Calories() int {
+	result := 0
+
+	for _, elf := range e.data {
+		result += elf.Calories
+	}
+
+	return result
+}
+
+func (e Elves) Debug() {
+	for _, elf := range e.data {
+		log.Println(elf)
+	}
+}
+
+func (e Elves) MaxCalories() Elf {
+	if e.Len() == 0 {
+		return Elf{}
+	}
+
+	return e.data[0]
+}
+
+func (e Elves) TopCalories(n int) Elves {
+	end := n
+	l := e.Len()
+
+	if end <= 0 || l < end {
+		end = l
+	}
+
+	return Elves{
+		data: e.data[0:end],
+	}
+}
+
+func (e Elves) String() string {
+	return fmt.Sprintf("%v elves carrying %v calories", e.Len(), aoc2022.PrettyFormat(e.Calories()))
+}
+
+func (e Elves) newElf(calories int) []Elf {
+	l := e.Len()
+	i, _ := sort.Find(l, func(i int) int {
+		return e.data[i].Calories - calories
+	})
+
+	result := append(e.data, Elf{})
+
+	copy(result[i+1:], result[i:])
+
+	result[i] = Elf{Id: l + 1, Calories: calories}
+
+	return result
+}
