@@ -2,9 +2,7 @@ package main
 
 import (
 	"aoc2022"
-	"bufio"
 	"log"
-	"os"
 )
 
 func findDuplicate(runes []rune) Supply {
@@ -40,35 +38,24 @@ func findBadge(rucksacks [3][]rune) Supply {
 }
 
 func main() {
-	file, err := os.Open("input.txt")
+	lr := aoc2022.NewLineReader("input.txt")
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer aoc2022.Close(file)
-
-	scanner := bufio.NewScanner(file)
-
-	scanner.Split(bufio.ScanLines)
+	defer aoc2022.Close(lr)
 
 	badges := 0
 	duplicates := 0
 	rucksacks := [3][]rune{}
-	line := 0
 
-	for scanner.Scan() {
-		runes := []rune(scanner.Text())
+	for lr.HasNext() {
+		runes := []rune(lr.Text())
 		duplicates += findDuplicate(runes).Priority()
 
-		i := line % 3
+		i := (lr.Count() - 1) % 3
 		rucksacks[i] = runes
 
 		if i == 2 {
 			badges += findBadge(rucksacks).Priority()
 		}
-
-		line += 1
 	}
 
 	log.Printf("Duplicates: %v", aoc2022.PrettyFormat(duplicates)) // 7 727

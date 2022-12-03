@@ -2,10 +2,8 @@ package main
 
 import (
 	"aoc2022"
-	"bufio"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strconv"
 )
@@ -24,31 +22,21 @@ type Elves struct {
 }
 
 func MustRead(fileName string) Elves {
-	log.Printf("Opening %v...", fileName)
-	file, err := os.Open(fileName)
+	lr := aoc2022.NewLineReader(fileName)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer aoc2022.Close(file)
-
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	log.Printf("Scanning %v...", fileName)
+	defer aoc2022.Close(lr)
 
 	result := Elves{}
 	calories := 0
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	for lr.HasNext() {
+		text := lr.Text()
 
-		if line == "" {
+		if text == "" {
 			result.data = result.newElf(calories)
 
 			calories = 0
-		} else if c, err := strconv.Atoi(line); err != nil {
+		} else if c, err := strconv.Atoi(text); err != nil {
 			log.Fatal(err)
 		} else {
 			calories += c

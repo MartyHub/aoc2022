@@ -2,34 +2,22 @@ package main
 
 import (
 	"aoc2022"
-	"bufio"
 	"log"
-	"os"
 )
 
 func main() {
-	file, err := os.Open("input.txt")
+	lr := aoc2022.NewLineReader("input.txt")
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	defer aoc2022.Close(lr)
 
-	defer aoc2022.Close(file)
-
-	scanner := bufio.NewScanner(file)
-
-	scanner.Split(bufio.ScanLines)
-
-	line := 0
 	score1 := 0
 	score2 := 0
 
-	for scanner.Scan() {
-		text := scanner.Text()
-		line += 1
+	for lr.HasNext() {
+		text := lr.Text()
 
 		if len(text) != 3 {
-			log.Fatalf("Invalid line %v: %v", line, text)
+			log.Fatalf("Invalid line %v: %v", lr.Count(), text)
 		}
 
 		runes := []rune(text)
