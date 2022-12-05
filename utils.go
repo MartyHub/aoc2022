@@ -27,3 +27,11 @@ func PrettyFormat(i int) string {
 
 	return result
 }
+
+func Must[T int](result T, err error) T {
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return result
+}

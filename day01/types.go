@@ -36,10 +36,8 @@ func MustRead(fileName string) Elves {
 			result.data = result.newElf(calories)
 
 			calories = 0
-		} else if c, err := strconv.Atoi(text); err != nil {
-			log.Fatal(err)
 		} else {
-			calories += c
+			calories += aoc2022.Must(strconv.Atoi(text))
 		}
 	}
 
