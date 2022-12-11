@@ -28,7 +28,7 @@ func PrettyFormat(i int) string {
 	return result
 }
 
-func Must[T int](result T, err error) T {
+func Must[T int | int64](result T, err error) T {
 	if err != nil {
 		log.Fatal(err)
 	}
