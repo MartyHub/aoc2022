@@ -7,33 +7,16 @@ import (
 func part1() {
 	m := ParseMap("input.txt")
 
-	log.Print(m)
-
 	best := m.Path(Path{positions: []Position{m.Start}})
 
-	log.Printf("Best %v", best.String(m)) // 394
+	log.Printf("Best: %v", best.Len()-1) // 394
 }
 
 func part2() {
 	m := ParseMap("input.txt")
-	best := Path{}
+	best := m.PathToHeight(Path{positions: []Position{m.Target}}, 0)
 
-	for y, row := range m.heights {
-		for x, h := range row {
-			if h == 0 {
-				p := m.Path(Path{positions: []Position{{
-					x: x,
-					y: y,
-				}}})
-
-				if best.Len() == 0 || p.Len() != 0 && p.Len() < best.Len() {
-					best = p
-				}
-			}
-		}
-	}
-
-	log.Printf("Best %v", best.String(m)) // 394
+	log.Printf("Best %v", best.Len()-1) // 388
 }
 
 func main() {

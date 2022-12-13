@@ -23,7 +23,7 @@ func (m Map) Height(p Position) int {
 	return m.heights[p.y][p.x]
 }
 
-func (m Map) Moves(p Position) []Position {
+func (m Map) MovesUp(p Position) []Position {
 	result := make([]Position, 0, 4)
 
 	for _, s := range []Position{
@@ -42,18 +42,57 @@ func (m Map) Moves(p Position) []Position {
 	return result
 }
 
+func (m Map) MovesDown(p Position) []Position {
+	result := make([]Position, 0, 4)
+
+	for _, s := range []Position{
+		{x: p.x, y: p.y - 1},
+		{x: p.x + 1, y: p.y},
+		{x: p.x, y: p.y + 1},
+		{x: p.x - 1, y: p.y},
+	} {
+		if m.Height(s) != math.MaxInt && m.Height(s)-m.Height(p) >= -1 {
+			result = append(result, s)
+		}
+	}
+
+	return result
+}
+
 func (m Map) Path(p Path) Path {
 	result := Path{}
 
-	for _, s := range m.Moves(p.Last()) {
+	for _, s := range m.MovesUp(p.Last()) {
 		np := p.Extend(s)
 
 		if s == m.Target {
 			return np
 		}
 
-		if !p.Contains(s) && m.paths.best(np) {
+		if m.paths.best(np) {
 			fp := m.Path(np)
+
+			if result.Len() == 0 || fp.Len() != 0 && fp.Len() < result.Len() {
+				result = fp
+			}
+		}
+	}
+
+	return result
+}
+
+func (m Map) PathToHeight(p Path, height int) Path {
+	result := Path{}
+
+	for _, s := range m.MovesDown(p.Last()) {
+		np := p.Extend(s)
+
+		if m.Height(s) == height {
+			return np
+		}
+
+		if m.paths.best(np) {
+			fp := m.PathToHeight(np, height)
 
 			if result.Len() == 0 || fp.Len() != 0 && fp.Len() < result.Len() {
 				result = fp
@@ -136,16 +175,6 @@ func ParseMap(file string) Map {
 
 type Path struct {
 	positions []Position
-}
-
-func (p Path) Contains(pos Position) bool {
-	for _, p := range p.positions {
-		if p == pos {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (p Path) Extend(pos Position) Path {
