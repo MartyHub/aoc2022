@@ -1,0 +1,26 @@
+package aoc2022
+
+func Prepend[T any](s []T, element T) []T {
+	s = append(s, element)
+
+	copy(s[1:], s)
+
+	s[0] = element
+
+	return s
+}
+
+func Insert[T any](s []T, index int, value T) []T {
+	if len(s) == index { // nil or empty slice or after last element
+		return append(s, value)
+	}
+
+	s = append(s[:index+1], s[index:]...) // index < len(a)
+	s[index] = value
+
+	return s
+}
+
+func Remove[T any](s []T, index int) []T {
+	return append(s[:index], s[index+1:]...)
+}
