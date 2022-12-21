@@ -1,34 +1,12 @@
 package main
 
 import (
-	"aoc2022"
-	"log"
+	"fmt"
 )
 
 func main() {
-	lr := aoc2022.NewLineReader("input.txt")
+	lava := ParseLava("input.txt")
 
-	defer aoc2022.Close(lr)
-
-	cubes := make(map[Cube]Cube, 0)
-
-	for lr.HasNext() {
-		cube := ParseCube(lr.Text())
-
-		cubes[cube] = cube
-	}
-
-	log.Printf("%v cubes", len(cubes))
-
-	surface := 0
-
-	for _, c := range cubes {
-		for _, ac := range c.Adjacent() {
-			if _, exist := cubes[ac]; !exist {
-				surface++
-			}
-		}
-	}
-
-	log.Printf("Surface: %v", surface) // 4 390
+	fmt.Printf("Surface: %v\n", lava.Surface())                  // 4 390
+	fmt.Printf("Exterior Surface: %v\n", lava.ExteriorSurface()) // 2 534
 }
