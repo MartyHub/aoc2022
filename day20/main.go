@@ -1,8 +1,10 @@
 package main
 
 import (
+	"aoc2022"
 	"log"
 	"reflect"
+	"time"
 )
 
 func test() {
@@ -56,7 +58,18 @@ func test() {
 func main() {
 	test()
 
-	e := ParseEncryptedFile("input.txt")
-	e.Decrypt()
-	log.Printf("Grove Coordinates Sum: %d", e.GroveCoordinatesSum()) // 5 904
+	e1 := ParseEncryptedFile("input.txt")
+	e1.Decrypt()
+	log.Printf("Grove Coordinates Sum: %d", e1.GroveCoordinatesSum()) // 5 904
+
+	e2 := ParseEncryptedFile("input.txt")
+	e2.ApplyDecryptionKey()
+	for i := 0; i < 10; i++ {
+		start := time.Now()
+		e2.Decrypt()
+		log.Printf("Round # %d in %v", i+1, time.Since(start))
+	}
+	log.Printf("Grove Coordinates Sum: %d", e2.GroveCoordinatesSum())
+
+	aoc2022.Print()
 }

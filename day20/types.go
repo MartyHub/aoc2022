@@ -3,9 +3,17 @@ package main
 import (
 	"aoc2022"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
+
+const decryptionKey = 811589153
+
+type CacheKey struct {
+	Index  int
+	Number int
+}
 
 type Value struct {
 	InitialOrder int
@@ -14,10 +22,18 @@ type Value struct {
 
 type EncryptedFile struct {
 	length int
-	values *[]Value
+	cache  map[CacheKey]int
+	values []Value
 }
 
-func (e EncryptedFile) Decrypt() {
+func (e *EncryptedFile) ApplyDecryptionKey() {
+	for i, v := range e.values {
+
+		e.values[i].Number = v.Number * decryptionKey
+	}
+}
+
+func (e *EncryptedFile) Decrypt() {
 	for i := 1; ; i++ {
 		index := e.NextIndexToMove(i)
 
@@ -29,7 +45,7 @@ func (e EncryptedFile) Decrypt() {
 	}
 }
 
-func (e EncryptedFile) GroveCoordinatesSum() int {
+func (e *EncryptedFile) GroveCoordinatesSum() int {
 	zeroIndex := e.ZeroIndex()
 
 	return e.Value((zeroIndex+1_000)%e.length).Number +
@@ -37,67 +53,62 @@ func (e EncryptedFile) GroveCoordinatesSum() int {
 		e.Value((zeroIndex+3_000)%e.length).Number
 }
 
-func (e EncryptedFile) Move(index int) {
-	newIndex := index
+func (e *EncryptedFile) Move(index int) {
 	value := e.Value(index)
-
-	if value.Number > 0 {
-		newIndex = e.NewRightIndex(index)
-	} else if value.Number < 0 {
-		newIndex = e.NewLeftIndex(index)
-	}
+	newIndex := e.newIndex(index, value)
 
 	if newIndex != index {
-		*e.values = aoc2022.Remove(*e.values, index)
-
-		*e.values = aoc2022.Insert(*e.values, newIndex, value)
+		e.doMove(value, index, newIndex)
 	}
-
-	//log.Printf("Iteration # %d: Moving %d from index %d to %d => %v", value.InitialOrder, value.Number, index, newIndex, e)
 }
 
-// -1 a b c
-//    a b c -1
-//    a b -1 c
+func (e *EncryptedFile) doMove(value Value, fromIndex, toIndex int) {
+	defer aoc2022.Timer("doMove")()
 
-// a -1 b c
-// -1 a b c
-// a b c -1
+	e.values = aoc2022.Remove(e.values, fromIndex)
+	e.values = aoc2022.Insert(e.values, toIndex, value)
+}
 
-func (e EncryptedFile) NewLeftIndex(index int) int {
+func (e *EncryptedFile) newIndex(index int, value Value) int {
+	key := CacheKey{Index: index, Number: value.Number}
+
+	if newIndex, found := e.cache[key]; found {
+		return newIndex
+	}
+
 	newIndex := index
-	value := e.Value(index)
 
-	for i := 0; i > value.Number; i-- {
-		newIndex--
+	if value.Number > 0 {
+		newIndex = e.newRightIndex(index, value)
+	} else if value.Number < 0 {
+		newIndex = e.newLeftIndex(index, value)
+	}
 
-		if newIndex == 0 {
-			newIndex = e.length - 1
-		} else if newIndex < 0 {
-			newIndex = e.length - 2
-		}
+	e.cache[key] = newIndex
+
+	return newIndex
+}
+
+func (e *EncryptedFile) newLeftIndex(index int, value Value) int {
+	defer aoc2022.Timer("newLeftIndex")()
+
+	newIndex := (index + value.Number) % (e.length - 1)
+
+	if newIndex <= 0 {
+		newIndex += e.length - 1
 	}
 
 	return newIndex
 }
 
-func (e EncryptedFile) NewRightIndex(index int) int {
-	newIndex := index
-	value := e.Value(index)
+func (e *EncryptedFile) newRightIndex(index int, value Value) int {
+	defer aoc2022.Timer("newRightIndex")()
 
-	for i := 0; i < value.Number; i++ {
-		newIndex++
-
-		if newIndex == e.length {
-			newIndex = 1
-		}
-	}
-
-	return newIndex
+	return (index + value.Number) % (e.length - 1)
 }
 
-func (e EncryptedFile) NextIndexToMove(initialOrder int) int {
-	for i, v := range *e.values {
+func (e *EncryptedFile) NextIndexToMove(initialOrder int) int {
+	for i, v := range e.values {
 		if v.InitialOrder == initialOrder {
 			return i
 		}
@@ -106,20 +117,20 @@ func (e EncryptedFile) NextIndexToMove(initialOrder int) int {
 	return -1
 }
 
-func (e EncryptedFile) Numbers() []int {
+func (e *EncryptedFile) Numbers() []int {
 	result := make([]int, e.length)
 
-	for i, v := range *e.values {
+	for i, v := range e.values {
 		result[i] = v.Number
 	}
 
 	return result
 }
 
-func (e EncryptedFile) String() string {
+func (e *EncryptedFile) String() string {
 	sb := strings.Builder{}
 
-	for i, v := range *e.values {
+	for i, v := range e.values {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
@@ -130,12 +141,12 @@ func (e EncryptedFile) String() string {
 	return sb.String()
 }
 
-func (e EncryptedFile) Value(index int) Value {
-	return (*e.values)[index]
+func (e *EncryptedFile) Value(index int) Value {
+	return e.values[index]
 }
 
-func (e EncryptedFile) ZeroIndex() int {
-	for i, v := range *e.values {
+func (e *EncryptedFile) ZeroIndex() int {
+	for i, v := range e.values {
 		if v.Number == 0 {
 			return i
 		}
@@ -144,21 +155,24 @@ func (e EncryptedFile) ZeroIndex() int {
 	return -1
 }
 
-func ParseEncryptedFile(fileName string) EncryptedFile {
+func ParseEncryptedFile(fileName string) *EncryptedFile {
 	lr := aoc2022.NewLineReader(fileName)
 
 	defer aoc2022.Close(lr)
 
-	values := make([]Value, 0)
+	result := &EncryptedFile{
+		cache: map[CacheKey]int{},
+	}
 
 	for lr.HasNext() {
 		value := Value{InitialOrder: lr.Count(), Number: aoc2022.Must(strconv.Atoi(lr.Text()))}
 
-		values = append(values, value)
+		result.values = append(result.values, value)
 	}
 
-	return EncryptedFile{
-		length: len(values),
-		values: &values,
-	}
+	result.length = len(result.values)
+
+	log.Printf("Length: %d", result.length)
+
+	return result
 }
