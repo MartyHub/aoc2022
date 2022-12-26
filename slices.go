@@ -1,13 +1,21 @@
 package aoc2022
 
-func Prepend[T any](s []T, element T) []T {
-	s = append(s, element)
+func Copy[T any](s []T) []T {
+	result := make([]T, len(s))
 
-	copy(s[1:], s)
+	copy(result, s)
 
-	s[0] = element
+	return result
+}
 
-	return s
+func CopyAndAppend[T any](s []T, value T) []T {
+	l := len(s)
+	result := make([]T, l+1)
+
+	copy(result, s)
+	result[l] = value
+
+	return result
 }
 
 func Insert[T any](s []T, index int, value T) []T {
@@ -17,6 +25,16 @@ func Insert[T any](s []T, index int, value T) []T {
 
 	s = append(s[:index+1], s[index:]...) // index < len(a)
 	s[index] = value
+
+	return s
+}
+
+func Prepend[T any](s []T, element T) []T {
+	s = append(s, element)
+
+	copy(s[1:], s)
+
+	s[0] = element
 
 	return s
 }
