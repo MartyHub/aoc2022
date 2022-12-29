@@ -8,6 +8,16 @@ func Copy[T any](s []T) []T {
 	return result
 }
 
+func Contains[T comparable](s []T, value T) bool {
+	for _, v := range s {
+		if v == value {
+			return true
+		}
+	}
+
+	return false
+}
+
 func CopyAndAppend[T any](s []T, value T) []T {
 	l := len(s)
 	result := make([]T, l+1)
@@ -16,6 +26,15 @@ func CopyAndAppend[T any](s []T, value T) []T {
 	result[l] = value
 
 	return result
+}
+
+func CopyAndAppends[T any](s []T, values []T) []T {
+	l := len(s)
+	result := make([]T, l+len(values))
+
+	copy(result, s)
+
+	return append(result, values...)
 }
 
 func Insert[T any](s []T, index int, value T) []T {

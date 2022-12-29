@@ -63,6 +63,14 @@ func (s State) IsOpen(valve string) bool {
 	return false
 }
 
+func (s State) LastOpenValve() string {
+	if len(s.OpenValves) == 0 {
+		return ""
+	}
+
+	return s.OpenValves[len(s.OpenValves)-1]
+}
+
 func (s State) Move(pressure int, link Link) State {
 	return newState(
 		s.Iteration+link.Cost,
