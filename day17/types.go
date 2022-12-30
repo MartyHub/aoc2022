@@ -117,6 +117,7 @@ func newRocksLoop() *loop[rock] {
 
 type Chamber struct {
 	data         []row
+	cycle        []row
 	height       int
 	currentRock  rock
 	currentRockY int
@@ -138,11 +139,13 @@ func (c *Chamber) applyJet() {
 	}
 }
 
-func (c *Chamber) rowFull(y int) bool {
-	return c.row(y) == 0b1111111
+func (c *Chamber) Height() int {
+	return c.height + len(c.data)
 }
 
 func (c *Chamber) Iterate(iteration int, debug bool) int {
+	previousCycleStart := 0
+
 	for i := 0; i < iteration; i++ {
 		c.addRock()
 
@@ -151,33 +154,44 @@ func (c *Chamber) Iterate(iteration int, debug bool) int {
 
 			if !c.moveDown() {
 				c.rest()
-				c.compress()
 
 				break
 			}
 		}
 
 		if debug {
-			fmt.Printf("Iteration # %d, height = %s:\n%s\n", i+1, aoc2022.PrettyFormat(c.Height()), c.String())
+			fmt.Printf("Iteration # %d, height = %s:\n%s\n",
+				i+1,
+				aoc2022.PrettyFormat(c.Height()),
+				c.String(),
+			)
+		}
+
+		if c.cycle == nil {
+			if y := c.findCycle(); y > 0 {
+				c.cycle = aoc2022.Copy(c.data[y+1:])
+				previousCycleStart = i
+
+				fmt.Printf("Iteration # %d: found cycle of length %s\n",
+					i+1,
+					aoc2022.PrettyFormat(len(c.cycle)),
+				)
+			}
+		} else if c.hasCycle() {
+			cycleIterations := i - previousCycleStart
+			cycles := (iteration - 1 - i) / cycleIterations
+
+			fmt.Printf("Iteration # %d: cycle in %d iterations\n",
+				i+1,
+				cycleIterations,
+			)
+
+			i += cycles * cycleIterations
+			c.height += cycles * len(c.cycle)
 		}
 	}
 
 	return c.Height()
-}
-
-func (c *Chamber) Height() int {
-	return c.height + len(c.data)
-}
-
-func (c *Chamber) compress() {
-	for y := len(c.data) - 1; y >= 0; y-- {
-		if c.rowFull(y) {
-			c.data = c.data[y+1:]
-			c.height += y + 1
-
-			break
-		}
-	}
 }
 
 func (c *Chamber) canMoveDown() bool {
@@ -264,6 +278,45 @@ func (c *Chamber) row(y int) row {
 	}
 
 	return c.data[y]
+}
+
+func (c *Chamber) findCycle() int {
+	l := len(c.data)
+	minCycleLength := 10
+
+	for y := l - 1 - minCycleLength; y > l-y; y-- {
+		if c.isCycle(y) {
+			return y
+		}
+	}
+
+	return -1
+}
+
+func (c *Chamber) isCycle(y int) bool {
+	l := len(c.data)
+
+	for i := l - 1; i > y; i-- {
+		if c.data[i] != c.data[y-(l-1-i)] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *Chamber) hasCycle() bool {
+	j := 0
+
+	for i := len(c.cycle) - 1; i >= 0; i-- {
+		if c.data[len(c.data)-1-j] != c.cycle[i] {
+			return false
+		}
+
+		j++
+	}
+
+	return true
 }
 
 func (c *Chamber) String() string {
