@@ -7,36 +7,39 @@ import (
 	"strings"
 )
 
-type Push rune
+type push rune
 
-func (p Push) String() string {
+func (p push) String() string {
 	return fmt.Sprintf("%c", p)
 }
 
 const (
-	Left  Push = '<'
-	Right Push = '>'
-	width      = 7
+	left  push = '<'
+	right push = '>'
 )
 
-type Jet[T any] struct {
+type loop[T any] struct {
 	index   int
 	pattern []T
 }
 
-func (j *Jet[T]) Next() T {
-	result := j.pattern[j.index%len(j.pattern)]
+func newLoop[T any](pattern []T) *loop[T] {
+	return &loop[T]{pattern: pattern}
+}
 
-	j.index++
+func (l *loop[T]) next() T {
+	result := l.pattern[l.index%len(l.pattern)]
+
+	l.index++
 
 	return result
 }
 
-func (j *Jet[T]) String() string {
-	return fmt.Sprint(j.pattern[j.index%len(j.pattern)])
+func (l *loop[T]) String() string {
+	return fmt.Sprint(l.pattern[l.index%len(l.pattern)])
 }
 
-func ParseJet(fileName string) *Jet[Push] {
+func parseJet(fileName string) *loop[push] {
 	lr := aoc2022.NewLineReader(fileName)
 
 	defer aoc2022.Close(lr)
@@ -45,140 +48,129 @@ func ParseJet(fileName string) *Jet[Push] {
 		log.Fatalf("Failed to parse jet from %v", fileName)
 	}
 
-	return &Jet[Push]{pattern: []Push(lr.Text())}
+	return newLoop([]push(lr.Text()))
 }
 
-type Rock [][]rune
+type row byte
 
-func (r Rock) String() string {
+func (r row) String() string {
 	sb := strings.Builder{}
 
-	for row := len(r) - 1; row >= 0; row-- {
-		for col := 0; col < len(r[row]); col++ {
-			sb.WriteRune(r[row][col])
+	for mask := byte(0b1000000); mask != 0; mask >>= 1 {
+		if byte(r)&mask == 0 {
+			sb.WriteRune('.')
+		} else {
+			sb.WriteRune('#')
 		}
-
-		sb.WriteRune('\n')
 	}
 
 	return sb.String()
 }
 
-var Rock1 = Rock{
-	{'.', '.', '@', '@', '@', '@', '.'},
-}
+type rock []row
 
-var Rock2 = Rock{
-	{'.', '.', '.', '@', '.', '.', '.'},
-	{'.', '.', '@', '@', '@', '.', '.'},
-	{'.', '.', '.', '@', '.', '.', '.'},
-}
+func (r rock) String() string {
+	sb := strings.Builder{}
 
-var Rock3 = Rock{
-	{'.', '.', '@', '@', '@', '.', '.'},
-	{'.', '.', '.', '.', '@', '.', '.'},
-	{'.', '.', '.', '.', '@', '.', '.'},
-}
+	for y := len(r) - 1; y >= 0; y-- {
+		sb.WriteString(r[y].String())
 
-var Rock4 = Rock{
-	{'.', '.', '@', '.', '.', '.', '.'},
-	{'.', '.', '@', '.', '.', '.', '.'},
-	{'.', '.', '@', '.', '.', '.', '.'},
-	{'.', '.', '@', '.', '.', '.', '.'},
-}
-
-var Rock5 = Rock{
-	{'.', '.', '@', '@', '.', '.', '.'},
-	{'.', '.', '@', '@', '.', '.', '.'},
-}
-
-func NewRockJet() *Jet[Rock] {
-	return &Jet[Rock]{pattern: []Rock{Rock1, Rock2, Rock3, Rock4, Rock5}}
-}
-
-type Chamber struct {
-	data              [][]rune
-	height            int
-	iteration         int
-	currentRockHeight int
-	currentRockY      int
-	jet               *Jet[Push]
-	rocks             *Jet[Rock]
-}
-
-func (c *Chamber) addRock() {
-	empty := aoc2022.Max(0, len(c.data)-1-c.highestRock())
-
-	if empty > 3 {
-		c.data = c.data[:len(c.data)-(empty-3)]
-	} else {
-		for i := empty; i < 3; i++ {
-			c.data = append(c.data, []rune{'.', '.', '.', '.', '.', '.', '.'})
+		if y > 0 {
+			sb.WriteRune('\n')
 		}
 	}
 
-	rock := c.rocks.Next()
+	return sb.String()
+}
 
-	c.currentRockHeight = len(rock)
-	c.currentRockY = len(c.data)
+var rock1 = rock{
+	0b0011110,
+}
 
-	for i := 0; i < c.currentRockHeight; i++ {
-		c.data = append(c.data, []rune(string(rock[i])))
-	}
+var rock2 = rock{
+	0b0001000,
+	0b0011100,
+	0b0001000,
+}
+
+var rock3 = rock{
+	0b0011100,
+	0b0000100,
+	0b0000100,
+}
+
+var rock4 = rock{
+	0b0010000,
+	0b0010000,
+	0b0010000,
+	0b0010000,
+}
+
+var rock5 = rock{
+	0b0011000,
+	0b0011000,
+}
+
+func newRocksLoop() *loop[rock] {
+	return newLoop([]rock{rock1, rock2, rock3, rock4, rock5})
+}
+
+type Chamber struct {
+	data         []row
+	height       int
+	currentRock  rock
+	currentRockY int
+	jet          *loop[push]
+	rocks        *loop[rock]
+}
+
+func (c *Chamber) addRock() {
+	c.currentRock = aoc2022.Copy(c.rocks.next())
+	c.currentRockY = len(c.data) + 3
 }
 
 func (c *Chamber) applyJet() {
-	push := c.jet.Next()
-
-	switch push {
-	case Left:
+	switch c.jet.next() {
+	case left:
 		c.moveLeft()
-	case Right:
+	case right:
 		c.moveRight()
 	}
 }
 
-func (c *Chamber) highestRock() int {
-	for y := len(c.data) - 1; y >= 0; y-- {
-		if c.hasRock(y) {
-			return y
-		}
-	}
-
-	return 0
+func (c *Chamber) rowFull(y int) bool {
+	return c.row(y) == 0b1111111
 }
 
-func (c *Chamber) hasRock(row int) bool {
-	for _, r := range c.data[row] {
-		if r == '#' {
-			return true
+func (c *Chamber) Iterate(iteration int, debug bool) int {
+	for i := 0; i < iteration; i++ {
+		c.addRock()
+
+		for {
+			c.applyJet()
+
+			if !c.moveDown() {
+				c.rest()
+				c.compress()
+
+				break
+			}
+		}
+
+		if debug {
+			fmt.Printf("Iteration # %d, height = %s:\n%s\n", i+1, aoc2022.PrettyFormat(c.Height()), c.String())
 		}
 	}
 
-	return false
+	return c.Height()
 }
 
-func (c *Chamber) iterate() {
-	c.addRock()
-
-	for {
-		c.applyJet()
-
-		if !c.moveDown() {
-			c.rest()
-			c.compress()
-
-			break
-		}
-	}
-
-	c.iteration++
+func (c *Chamber) Height() int {
+	return c.height + len(c.data)
 }
 
 func (c *Chamber) compress() {
-	for i := c.currentRockHeight; i >= 0; i-- {
-		y := c.currentRockY + i
-
+	for y := len(c.data) - 1; y >= 0; y-- {
 		if c.rowFull(y) {
 			c.data = c.data[y+1:]
 			c.height += y + 1
@@ -188,33 +180,13 @@ func (c *Chamber) compress() {
 	}
 }
 
-func (c *Chamber) rowFull(y int) bool {
-	for x := 0; x < width; x++ {
-		if c.data[y][x] != '#' {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (c *Chamber) canMoveDown() bool {
-	for y := 0; y < c.currentRockHeight; y++ {
-		if !c.canRowMoveDown(c.currentRockY + y) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (c *Chamber) canRowMoveDown(y int) bool {
-	if y == 0 {
+	if c.currentRockY == 0 {
 		return false
 	}
 
-	for x := 0; x < width; x++ {
-		if c.data[y][x] == '@' && c.data[y-1][x] == '#' {
+	for i, rr := range c.currentRock {
+		if c.row(c.currentRockY+i-1)&rr != 0 {
 			return false
 		}
 	}
@@ -227,27 +199,18 @@ func (c *Chamber) moveDown() bool {
 		return false
 	}
 
-	for y := 0; y < c.currentRockHeight; y++ {
-		c.moveRowDown(c.currentRockY + y)
-	}
-
 	c.currentRockY--
 
 	return true
 }
 
-func (c *Chamber) moveRowDown(y int) {
-	for x := 0; x < width; x++ {
-		if c.data[y][x] == '@' {
-			c.data[y-1][x] = '@'
-			c.data[y][x] = '.'
-		}
-	}
-}
-
 func (c *Chamber) canMoveLeft() bool {
-	for y := 0; y < c.currentRockHeight; y++ {
-		if !c.canRowMoveLeft(c.currentRockY + y) {
+	for i, rr := range c.currentRock {
+		if rr&0b1000000 != 0 {
+			return false
+		}
+
+		if c.row(c.currentRockY+i)&(rr<<1) != 0 {
 			return false
 		}
 	}
@@ -255,36 +218,21 @@ func (c *Chamber) canMoveLeft() bool {
 	return true
 }
 
-func (c *Chamber) canRowMoveLeft(y int) bool {
-	for x := width - 1; x > 0; x-- {
-		if c.data[y][x] == '@' && c.data[y][x-1] == '#' {
-			return false
-		}
-	}
-
-	return c.data[y][0] != '@'
-}
-
 func (c *Chamber) moveLeft() {
 	if c.canMoveLeft() {
-		for y := 0; y < c.currentRockHeight; y++ {
-			c.moveRowLeft(c.currentRockY + y)
-		}
-	}
-}
-
-func (c *Chamber) moveRowLeft(y int) {
-	for x := 1; x < width; x++ {
-		if c.data[y][x] == '@' {
-			c.data[y][x] = '.'
-			c.data[y][x-1] = '@'
+		for i, rr := range c.currentRock {
+			c.currentRock[i] = rr << 1
 		}
 	}
 }
 
 func (c *Chamber) canMoveRight() bool {
-	for y := 0; y < c.currentRockHeight; y++ {
-		if !c.canRowMoveRight(c.currentRockY + y) {
+	for i, rr := range c.currentRock {
+		if rr&0b0000001 != 0 {
+			return false
+		}
+
+		if c.row(c.currentRockY+i)&(rr>>1) != 0 {
 			return false
 		}
 	}
@@ -292,68 +240,49 @@ func (c *Chamber) canMoveRight() bool {
 	return true
 }
 
-func (c *Chamber) canRowMoveRight(y int) bool {
-	for x := 0; x < width-1; x++ {
-		if c.data[y][x] == '@' && c.data[y][x+1] == '#' {
-			return false
-		}
-	}
-
-	return c.data[y][width-1] != '@'
-}
-
 func (c *Chamber) moveRight() {
 	if c.canMoveRight() {
-		for y := 0; y < c.currentRockHeight; y++ {
-			c.moveRowRight(c.currentRockY + y)
-		}
-	}
-}
-
-func (c *Chamber) moveRowRight(y int) {
-	for x := 5; x >= 0; x-- {
-		if c.data[y][x] == '@' {
-			c.data[y][x] = '.'
-			c.data[y][x+1] = '@'
+		for i, rr := range c.currentRock {
+			c.currentRock[i] = rr >> 1
 		}
 	}
 }
 
 func (c *Chamber) rest() {
-	for y := 0; y < c.currentRockHeight; y++ {
-		c.restRow(c.currentRockY + y)
+	for i, rr := range c.currentRock {
+		if len(c.data) > c.currentRockY+i {
+			c.data[c.currentRockY+i] |= rr
+		} else {
+			c.data = append(c.data, rr)
+		}
 	}
 }
 
-func (c *Chamber) restRow(y int) {
-	for x := 0; x < width; x++ {
-		if c.data[y][x] == '@' {
-			c.data[y][x] = '#'
-		}
+func (c *Chamber) row(y int) row {
+	if y >= len(c.data) {
+		return 0
 	}
+
+	return c.data[y]
 }
 
 func (c *Chamber) String() string {
 	sb := strings.Builder{}
 
-	for row := len(c.data) - 1; row >= 0; row-- {
-		for col := 0; col < len(c.data[row]); col++ {
-			sb.WriteRune(c.data[row][col])
+	for y := len(c.data) - 1; y >= 0; y-- {
+		sb.WriteString(c.data[y].String())
+
+		if y > 0 {
+			sb.WriteRune('\n')
 		}
-
-		sb.WriteRune('\n')
 	}
-
-	sb.WriteString(fmt.Sprintf("Current Rock Height: %v\n", c.currentRockHeight))
-	sb.WriteString(fmt.Sprintf("Current Rock Y:      %v\n", c.currentRockY))
 
 	return sb.String()
 }
 
 func NewChamber(fileName string) *Chamber {
 	return &Chamber{
-		data:  [][]rune{},
-		jet:   ParseJet(fileName),
-		rocks: NewRockJet(),
+		jet:   parseJet(fileName),
+		rocks: newRocksLoop(),
 	}
 }
